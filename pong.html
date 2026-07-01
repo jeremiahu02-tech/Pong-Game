@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PRIME TENNIS</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            /* CRITICAL FIX: Disables all default browser gestures (like pull-to-refresh) */
+            touch-action: none;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            position: fixed;
+        }
+
+        /* Full Screen Menu Container */
+        #menuContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #12131a 0%, #050508 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .prime-title {
+            color: #00ffff;
+            font-size: 7vw;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            margin: 0 0 5px 0;
+            text-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+        }
+
+        .prime-credit {
+            color: #fff;
+            font-size: 2vw;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+            opacity: 0.7;
+        }
+
+        #loadingWrapper {
+            width: 40%;
+            height: 6px;
+            background-color: #222;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        #loadingBar {
+            width: 0%;
+            height: 100%;
+            background-color: #00ffff;
+            box-shadow: 0 0 10px #00ffff;
+        }
+
+        #selectionView {
+            display: none;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .menu-btn {
+            padding: 12px 25px;
+            font-size: 1.8vw;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            width: 20vw;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        #easyBtn {
+            background: #4CAF50;
+        }
+
+        #medBtn {
+            background: #FF9800;
+        }
+
+        #hardBtn {
+            background: #f44336;
+        }
+
+        #changeModeBtn {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 20px;
+            background-color: #222;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.5vw;
+            z-index: 10;
+        }
+
+        /* STRETCH TO FIT SCREEN FOR DISPLAY */
+        .canvas-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+        }
+
+        canvas {
+            background-color: #000;
+            border: 2px solid #222;
+            width: 100vw;
+            height: 100vh;
+            object-fit: fill;
+            /* Forces the game court to perfectly stretch to every corner of your phone */
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="menuContainer">
+        <h1 class="prime-title">PRIME TENNIS</h1>
+        <div class="prime-credit">by richie prime designs</div>
+
+        <div id="loadingWrapper">
+            <div id="loadingBar"></div>
+        </div>
+
+        <div id="selectionView">
+            <button id="easyBtn" class="menu-btn" onclick="startGame('easy')">EASY MODE</button>
+            <button id="medBtn" class="menu-btn" onclick="startGame('medium')">MEDIUM MODE</button>
+            <button id="hardBtn" class="menu-btn" onclick="startGame('hard')">HARD MODE</button>
+        </div>
+    </div>
+
+    <div class="canvas-wrapper">
+        <canvas id="pongCanvas" width="800" height="400"></canvas>
+    </div>
+
+    <button id="changeModeBtn" onclick="returnToMenu()">⚙️ CHANGE MODE</button>
+
+    <audio id="bgMusic" loop>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const canvas = document.getElementById("pongCanvas");
+        const ctx = canvas.getContext("2d");
+        const bgMusic = document.getElementById("bgMusic");
+
+        let isGameStarted = false;
+        let isGameOver = false;
+        let finalWinnerName = "";
+
+        let aiReactionDelay = 12;
+        let aiMistakeChance = 2;
+        let aiCurrentSpeed = 6;
+        let currentLevelLabel = "MEDIUM";
+
+        const player = { x: 25, y: 160, width: 15, height: 80, score: 0 };
+        const ai = { x: 760, y: 160, width: 15, height: 80, score: 0, frameCount: 0, isMakingMistake: false };
+        const ball = { x: 400, y: 200, radius: 8, speedX: 0, speedY: 0 };
+
+        // --- LOADING SYSTEM ---
+        window.addEventListener("DOMContentLoaded", () => {
+            const bar = document.getElementById("loadingBar");
+            const loader = document.getElementById("loadingWrapper");
+            const selection = document.getElementById("selectionView");
+            let widthValue = 0;
+
+            const loadingInterval = setInterval(() => {
+                if (widthValue >= 100) {
+                    clearInterval(loadingInterval);
+                    loader.style.display = "none";
+                    selection.style.display = "flex";
+                } else {
+                    widthValue += 3;
+                    bar.style.width = widthValue + "%";
+                }
+            }, 30);
+        });
+
+        // --- BACKGROUND MUSIC CONTROL FIX ---
+        // Instantly kills the audio if the user minimizes or changes tabs
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                bgMusic.pause();
+            } else if (isGameStarted && !isGameOver) {
+                bgMusic.play().catch(() => { });
+            }
+        });
+
+        // --- STEP 3: LEFT-SIDE INVISIBLE TOUCH CONTROLLER ---
+        function handleTouchInput(clientY, clientX) {
+            if (!isGameStarted || isGameOver) return;
+
+            let rect = canvas.getBoundingClientRect();
+
+            // Only move the bat if the touch happens on the LEFT half of the screen
+            if (clientX < (rect.left + rect.width / 2)) {
+                let scaleY = canvas.height / rect.height;
+                player.y = (clientY - rect.top) * scaleY - player.height / 2;
+            }
+        }
+
+        // Mouse support for testing on laptop
+        canvas.addEventListener("mousemove", (e) => {
+            let rect = canvas.getBoundingClientRect();
+            handleTouchInput(e.clientY, e.clientX);
+        });
+
+        // Strict touch interception to stop pull-to-refresh completely
+        document.body.addEventListener("touchstart", (e) => {
+            if (e.target.tagName !== 'BUTTON') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.body.addEventListener("touchmove", (e) => {
+            e.preventDefault();
+            if (e.touches.length > 0) {
+                handleTouchInput(e.touches[0].clientY, e.touches[0].clientX);
+            }
+        }, { passive: false });
+
+
+        // --- GAME MECHANICS ---
+        function startGame(level) {
+            currentLevelLabel = level.toUpperCase();
+
+            if (level === 'easy') {
+                aiReactionDelay = 22; aiMistakeChance = 4.5; aiCurrentSpeed = 3.5;
+            } else if (level === 'medium') {
+                aiReactionDelay = 14; aiMistakeChance = 2.0; aiCurrentSpeed = 5.5;
+            } else if (level === 'hard') {
+                aiReactionDelay = 4; aiMistakeChance = 0.0; aiCurrentSpeed = 8.5;
+            }
+
+            player.score = 0; ai.score = 0; player.y = 160; ai.y = 160;
+            isGameOver = false;
+
+            document.getElementById('menuContainer').style.display = 'none';
+            bgMusic.play().catch(() => { });
+
+            launchBall();
+            isGameStarted = true;
+        }
+
+        function returnToMenu() {
+            isGameStarted = false;
+            bgMusic.pause();
+            document.querySelector('.prime-title').textContent = "SWAP MODE";
+            document.getElementById('loadingWrapper').style.display = "none";
+            document.getElementById('selectionView').style.display = "flex";
+            document.getElementById('menuContainer').style.display = 'flex';
+        }
+
+        function launchBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.speedX = Math.random() > 0.5 ? 6 : -6;
+            ball.speedY = (Math.random() * 2 - 1) * 4;
+        }
+
+        function update() {
+            if (!isGameStarted || isGameOver) return;
+
+            ball.x += ball.speedX;
+            ball.y += ball.speedY;
+
+            if (ball.y - ball.radius < 0) { ball.y = ball.radius; ball.speedY = -ball.speedY; }
+            if (ball.y + ball.radius > canvas.height) { ball.y = canvas.height - ball.radius; ball.speedY = -ball.speedY; }
+
+            ai.frameCount++;
+            if (ai.frameCount % aiReactionDelay === 0) {
+                ai.isMakingMistake = (Math.random() * 10 < aiMistakeChance);
+            }
+
+            if (!ai.isMakingMistake) {
+                let aiPaddleCenter = ai.y + ai.height / 2;
+                if (aiPaddleCenter < ball.y - 15) ai.y += aiCurrentSpeed;
+                else if (aiPaddleCenter > ball.y + 15) ai.y -= aiCurrentSpeed;
+            }
+
+            player.y = Math.max(0, Math.min(canvas.height - player.height, player.y));
+            ai.y = Math.max(0, Math.min(canvas.height - ai.height, ai.y));
+
+            if (ball.x < 0) { ai.score++; checkScoreLimits(); if (!isGameOver) launchBall(); }
+            else if (ball.x > canvas.width) { player.score++; checkScoreLimits(); if (!isGameOver) launchBall(); }
+
+            if (ball.speedX < 0 && ball.x - ball.radius <= player.x + player.width && ball.x >= player.x) {
+                if (ball.y >= player.y && ball.y <= player.y + player.height) {
+                    ball.speedX = -ball.speedX;
+                    ball.speedY = (ball.y - (player.y + player.height / 2)) * 0.25;
+                }
+            }
+
+            if (ball.speedX > 0 && ball.x + ball.radius >= ai.x && ball.x <= ai.x + ai.width) {
+                if (ball.y >= ai.y && ball.y <= ai.y + ai.height) {
+                    ball.speedX = -ball.speedX;
+                    ball.speedY = (ball.y - (ai.y + ai.height / 2)) * 0.25;
+                }
+            }
+        }
+
+        function checkScoreLimits() {
+            if (player.score >= 10) { isGameOver = true; finalWinnerName = "YOU WIN!"; }
+            else if (ai.score >= 10) { isGameOver = true; finalWinnerName = "AI WINS!"; }
+        }
+
+        function drawRect(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); }
+        function drawCircle(x, y, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawRect(0, 0, canvas.width, canvas.height, "#000");
+
+            for (let i = 0; i < canvas.height; i += 25) {
+                drawRect(canvas.width / 2 - 1, i, 2, 12, "#1c1d24");
+            }
+
+            ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+            ctx.font = "bold 44px monospace";
+            ctx.fillText(player.score, canvas.width / 4, 65);
+            ctx.fillText(ai.score, (3 * canvas.width) / 4, 65);
+
+            drawRect(player.x, player.y, player.width, player.height, "cyan");
+            drawRect(ai.x, ai.y, ai.width, ai.height, "magenta");
+
+            if (!isGameOver) {
+                drawCircle(ball.x, ball.y, ball.radius, "white");
+            } else {
+                drawRect(0, 0, canvas.width, canvas.height, "rgba(0,0,0,0.85)");
+                ctx.fillStyle = finalWinnerName === "YOU WIN!" ? "#00ffff" : "#f44336";
+                ctx.font = "bold 50px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(finalWinnerName, canvas.width / 2, canvas.height / 2 - 10);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "16px Arial";
+                ctx.fillText("Click 'CHANGE MODE' below to start fresh!", canvas.width / 2, canvas.height / 2 + 40);
+                ctx.textAlign = "start";
+            }
+        }
+
+        function gameLoop() { update(); render(); requestAnimationFrame(gameLoop); }
+        gameLoop();
+    </script>
+</body>
+
+</html>
