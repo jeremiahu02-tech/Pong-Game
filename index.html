@@ -11,7 +11,6 @@
             box-sizing: border-box;
             user-select: none;
             -webkit-user-select: none;
-            /* CRITICAL FIX: Disables all default browser gestures (like pull-to-refresh) */
             touch-action: none;
         }
 
@@ -21,14 +20,14 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            background-color: #000;
+            background-color: #111;
             color: white;
             font-family: Arial, sans-serif;
             overflow: hidden;
             position: fixed;
         }
 
-        /* Full Screen Menu Container */
+        /* Centered Main Menu Layout */
         #menuContainer {
             position: fixed;
             top: 0;
@@ -45,7 +44,7 @@
 
         .prime-title {
             color: #00ffff;
-            font-size: 7vw;
+            font-size: 6vw;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 6px;
@@ -58,7 +57,7 @@
             font-size: 2vw;
             letter-spacing: 3px;
             text-transform: uppercase;
-            margin-bottom: 30px;
+            margin-bottom: 4vh;
             opacity: 0.7;
         }
 
@@ -93,7 +92,7 @@
             color: white;
             border: none;
             border-radius: 8px;
-            width: 20vw;
+            width: 18vw;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
         }
 
@@ -111,7 +110,7 @@
 
         #changeModeBtn {
             position: absolute;
-            bottom: 15px;
+            bottom: 12px;
             left: 50%;
             transform: translateX(-50%);
             padding: 8px 20px;
@@ -125,23 +124,23 @@
             z-index: 10;
         }
 
-        /* STRETCH TO FIT SCREEN FOR DISPLAY */
+        /* Restores your favorite crisp, bounded gameplay window framework */
         .canvas-wrapper {
             width: 100%;
             height: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: #000;
+            padding: 20px;
         }
 
         canvas {
             background-color: #000;
-            border: 2px solid #222;
-            width: 100vw;
-            height: 100vh;
-            object-fit: fill;
-            /* Forces the game court to perfectly stretch to every corner of your phone */
+            border: 2px solid #333;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 6px;
         }
     </style>
 </head>
@@ -187,11 +186,10 @@
         let aiCurrentSpeed = 6;
         let currentLevelLabel = "MEDIUM";
 
-        const player = { x: 25, y: 160, width: 15, height: 80, score: 0 };
-        const ai = { x: 760, y: 160, width: 15, height: 80, score: 0, frameCount: 0, isMakingMistake: false };
+        const player = { x: 20, y: 160, width: 14, height: 80, score: 0 };
+        const ai = { x: 766, y: 160, width: 14, height: 80, score: 0, frameCount: 0, isMakingMistake: false };
         const ball = { x: 400, y: 200, radius: 8, speedX: 0, speedY: 0 };
 
-        // --- LOADING SYSTEM ---
         window.addEventListener("DOMContentLoaded", () => {
             const bar = document.getElementById("loadingBar");
             const loader = document.getElementById("loadingWrapper");
@@ -210,8 +208,6 @@
             }, 30);
         });
 
-        // --- BACKGROUND MUSIC CONTROL FIX ---
-        // Instantly kills the audio if the user minimizes or changes tabs
         document.addEventListener("visibilitychange", () => {
             if (document.hidden) {
                 bgMusic.pause();
@@ -220,58 +216,45 @@
             }
         });
 
-        // --- STEP 3: LEFT-SIDE INVISIBLE TOUCH CONTROLLER ---
+        // CONTROL GAP FIX: Matches thumb position anywhere on the left half
         function handleTouchInput(clientY, clientX) {
             if (!isGameStarted || isGameOver) return;
 
             let rect = canvas.getBoundingClientRect();
 
-            // Only move the bat if the touch happens on the LEFT half of the screen
-            if (clientX < (rect.left + rect.width / 2)) {
+            // Map inputs strictly within the left half of the display screen
+            if (clientX < (window.innerWidth / 2)) {
                 let scaleY = canvas.height / rect.height;
-                player.y = (clientY - rect.top) * scaleY - player.height / 2;
+                let calculatedY = (clientY - rect.top) * scaleY - player.height / 2;
+                player.y = calculatedY;
             }
         }
 
-        // Mouse support for testing on laptop
         canvas.addEventListener("mousemove", (e) => {
-            let rect = canvas.getBoundingClientRect();
             handleTouchInput(e.clientY, e.clientX);
         });
 
-        // Strict touch interception to stop pull-to-refresh completely
-        document.body.addEventListener("touchstart", (e) => {
-            if (e.target.tagName !== 'BUTTON') {
-                e.preventDefault();
-            }
+        document.addEventListener("touchstart", (e) => {
+            if (e.target.tagName !== 'BUTTON') e.preventDefault();
         }, { passive: false });
 
-        document.body.addEventListener("touchmove", (e) => {
+        document.addEventListener("touchmove", (e) => {
             e.preventDefault();
             if (e.touches.length > 0) {
                 handleTouchInput(e.touches[0].clientY, e.touches[0].clientX);
             }
         }, { passive: false });
 
-
-        // --- GAME MECHANICS ---
         function startGame(level) {
             currentLevelLabel = level.toUpperCase();
-
-            if (level === 'easy') {
-                aiReactionDelay = 22; aiMistakeChance = 4.5; aiCurrentSpeed = 3.5;
-            } else if (level === 'medium') {
-                aiReactionDelay = 14; aiMistakeChance = 2.0; aiCurrentSpeed = 5.5;
-            } else if (level === 'hard') {
-                aiReactionDelay = 4; aiMistakeChance = 0.0; aiCurrentSpeed = 8.5;
-            }
+            if (level === 'easy') { aiReactionDelay = 22; aiMistakeChance = 4.5; aiCurrentSpeed = 3.5; }
+            else if (level === 'medium') { aiReactionDelay = 14; aiMistakeChance = 2.0; aiCurrentSpeed = 5.5; }
+            else if (level === 'hard') { aiReactionDelay = 4; aiMistakeChance = 0.0; aiCurrentSpeed = 8.5; }
 
             player.score = 0; ai.score = 0; player.y = 160; ai.y = 160;
             isGameOver = false;
-
             document.getElementById('menuContainer').style.display = 'none';
             bgMusic.play().catch(() => { });
-
             launchBall();
             isGameStarted = true;
         }
@@ -279,7 +262,6 @@
         function returnToMenu() {
             isGameStarted = false;
             bgMusic.pause();
-            document.querySelector('.prime-title').textContent = "SWAP MODE";
             document.getElementById('loadingWrapper').style.display = "none";
             document.getElementById('selectionView').style.display = "flex";
             document.getElementById('menuContainer').style.display = 'flex';
