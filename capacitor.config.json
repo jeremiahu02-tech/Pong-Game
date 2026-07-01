@@ -1,0 +1,11 @@
+{
+  "appId": "com.richieprimedesigns.primetennis",
+  "appName": "PRIME TENNIS",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}
