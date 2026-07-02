@@ -168,14 +168,52 @@
 
     <button id="changeModeBtn" onclick="returnToMenu()">⚙️ CHANGE MODE</button>
 
-    <audio id="bgMusic" loop>
-        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    <audio id="song1">
+        <source src="audio/song1.mp3" type="audio/mpeg">
+    </audio>
+
+    <audio id="song2">
+        <source src="audio/song2.mp3" type="audio/mpeg">
+    </audio>
+
+    <audio id="song3">
+        <source src="audio/song3.mp3" type="audio/mpeg">
     </audio>
 
     <script>
         const canvas = document.getElementById("pongCanvas");
         const ctx = canvas.getContext("2d");
-        const bgMusic = document.getElementById("bgMusic");
+        const song1 = document.getElementById("song1");
+        const song2 = document.getElementById("song2");
+        const song3 = document.getElementById("song3");
+        const songs = [song1, song2, song3];
+        let currentSongIndex = 0;
+
+        // Sequential music playback
+        function playNextSong() {
+            songs[currentSongIndex].play().catch(() => { });
+        }
+
+        song1.addEventListener('ended', () => {
+            currentSongIndex = 1;
+            playNextSong();
+        });
+
+        song2.addEventListener('ended', () => {
+            currentSongIndex = 2;
+            playNextSong();
+        });
+
+        song3.addEventListener('ended', () => {
+            currentSongIndex = 0;
+            playNextSong();
+        });
+
+        // Start music on page load
+        window.addEventListener('load', () => {
+            currentSongIndex = 0;
+            playNextSong();
+        });
 
         let isGameStarted = false;
         let isGameOver = false;
@@ -210,9 +248,9 @@
 
         document.addEventListener("visibilitychange", () => {
             if (document.hidden) {
-                bgMusic.pause();
+                songs.forEach(song => song.pause());
             } else if (isGameStarted && !isGameOver) {
-                bgMusic.play().catch(() => { });
+                songs[currentSongIndex].play().catch(() => { });
             }
         });
 
@@ -254,14 +292,14 @@
             player.score = 0; ai.score = 0; player.y = 160; ai.y = 160;
             isGameOver = false;
             document.getElementById('menuContainer').style.display = 'none';
-            bgMusic.play().catch(() => { });
+            songs[currentSongIndex].play().catch(() => { });
             launchBall();
             isGameStarted = true;
         }
 
         function returnToMenu() {
             isGameStarted = false;
-            bgMusic.pause();
+            songs.forEach(song => song.pause());
             document.getElementById('loadingWrapper').style.display = "none";
             document.getElementById('selectionView').style.display = "flex";
             document.getElementById('menuContainer').style.display = 'flex';
